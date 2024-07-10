@@ -22,7 +22,7 @@ func IsAuthorized(role string) func(http.Handler) http.Handler {
 				return controllers.JwtKey, nil
 			})
 			if err != nil || !token.Valid || claims.Role != role {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				http.Error(w, "Forbidden", http.StatusForbidden)
 				return
 			}
 
