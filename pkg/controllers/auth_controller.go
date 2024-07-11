@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/jinzhu/gorm"
-	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"time"
 	"user-authentication-with-go/pkg/models"
@@ -13,15 +12,15 @@ import (
 
 var JwtKey = []byte("my_secret_key")
 
-type Credentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+type Claims struct {
+	Email string `json:"email"`
+	Role  string `json:"role"`
+	jwt.StandardClaims
 }
 
-type Claims struct {
-	Username string `json:"username"`
-	Role     string `json:"role"`
-	jwt.StandardClaims
+type Credentials struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type UserResponse struct {
@@ -31,48 +30,87 @@ type UserResponse struct {
 func Register(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var user models.User
-		json.NewDecoder(r.Body).Decode(&user)
+		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+			http.Error(w, "Invalid request payload", http.StatusBadRequest)
+			return
+		}
+
 		hashedPassword, err := utils.HashPassword(user.Password)
 		if err != nil {
 			http.Error(w, "Error hashing password", http.StatusInternalServerError)
 			return
 		}
 		user.Password = hashedPassword
-		db.Create(&user)
-
-		response := UserResponse{
-			Username: user.Username,
+		user.OTPExpiry = time.Now()
+		if err := db.Create(&user).Error; err != nil {
+			http.Error(w, "Error creating user", http.StatusInternalServerError)
+			return
 		}
 
+		utils.SendEmail(user.Email, "Registration Successful", "Welcome to Bookstore!")
+
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(w).Encode(map[string]string{"username": user.Username})
 	}
 }
 
 func Login(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var creds Credentials
-		json.NewDecoder(r.Body).Decode(&creds)
+		var creds struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+			http.Error(w, "Invalid request payload", http.StatusBadRequest)
+			return
+		}
 
 		var user models.User
-		db.Where("username = ?", creds.Username).First(&user)
+		if err := db.Where("email = ?", creds.Email).First(&user).Error; err != nil {
+			http.Error(w, "User not found", http.StatusUnauthorized)
+			return
+		}
 
-		if user.Username == "" || bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password)) != nil {
+		if !utils.CheckPasswordHash(creds.Password, user.Password) {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return
 		}
 
-		expirationTime := time.Now().Add(24 * time.Hour)
-		claims := &Claims{
-			Username: user.Username,
-			Role:     user.Role,
-			StandardClaims: jwt.StandardClaims{
-				ExpiresAt: expirationTime.Unix(),
-			},
+		otp := utils.GenerateOTP()
+		user.OTP = otp
+		user.OTPExpiry = time.Now().Add(10 * time.Minute)
+		db.Save(&user)
+
+		utils.SendEmail(user.Email, "OTP for Login", "Your OTP is: "+otp)
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "OTP sent to your email"})
+	}
+}
+
+func VerifyOTP(db *gorm.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Email string `json:"email"`
+			OTP   string `json:"otp"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request payload", http.StatusBadRequest)
+			return
 		}
 
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		tokenString, err := token.SignedString(JwtKey)
+		var user models.User
+		if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+			http.Error(w, "User not found", http.StatusUnauthorized)
+			return
+		}
+
+		if user.Email == "" || !utils.ValidateOTP(&user, req.OTP) {
+			http.Error(w, "Invalid OTP", http.StatusUnauthorized)
+			return
+		}
+
+		tokenString, err := utils.GenerateJWT(user.Email, user.Role)
 		if err != nil {
 			http.Error(w, "Error generating token", http.StatusInternalServerError)
 			return
@@ -81,7 +119,10 @@ func Login(db *gorm.DB) http.HandlerFunc {
 		http.SetCookie(w, &http.Cookie{
 			Name:    "token",
 			Value:   tokenString,
-			Expires: expirationTime,
+			Expires: time.Now().Add(24 * time.Hour),
 		})
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Login Successfully"})
 	}
 }

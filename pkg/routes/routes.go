@@ -23,6 +23,7 @@ func SetupRoutes(db *gorm.DB) *mux.Router {
 	r.HandleFunc("/", HealthCheck()).Methods("GET")
 	r.HandleFunc("/register", controllers.Register(db)).Methods("POST")
 	r.HandleFunc("/login", controllers.Login(db)).Methods("POST")
+	r.HandleFunc("/verify-otp", controllers.VerifyOTP(db)).Methods("POST")
 
 	adminRouter := r.PathPrefix("/admin").Subrouter()
 	adminRouter.Use(middleware.IsAuthorized("admin"))
