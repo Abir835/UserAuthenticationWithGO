@@ -30,6 +30,22 @@ Books Viewing and Purchasing (Normal User)
     View Books: Normal users can view the list of available books.
     View Book Details: Normal users can see detailed information about a specific book.
     (Optional) Purchase Books: Implement functionality for normal users to purchase books.
+
+Database
+
+    We are Using Mysql Data
+    1. Create Database Instance like "bookstore"
+    2. Then how to configure database
+    Then how to configure database 
+    dbUser := os.Getenv("DBUSER")
+	dbPass := os.Getenv("PASSWORD")
+	dbName := os.Getenv("DATABASE")
+
+	dsn := fmt.Sprintf("%s:%s@tcp(localhost:3306)/%s?charset=utf8&parseTime=True&loc=Local",
+		dbUser, dbPass, dbName)
+
+	db, err := gorm.Open("mysql", dsn)
+
 Dependencies
 
     github.com/dgrijalva/jwt-go v3.2.0

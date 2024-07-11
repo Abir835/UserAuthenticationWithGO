@@ -121,14 +121,14 @@ func VerifyOTP(db *gorm.DB) http.HandlerFunc {
 			return
 		}
 
-		http.SetCookie(w, &http.Cookie{
-			Name:    "token",
-			Value:   tokenString,
-			Expires: time.Now().Add(24 * time.Hour),
-		})
+		//http.SetCookie(w, &http.Cookie{
+		//	Name:    "token",
+		//	Value:   tokenString,
+		//	Expires: time.Now().Add(24 * time.Hour),
+		//})
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Login Successfully"})
+		json.NewEncoder(w).Encode(map[string]string{"message": tokenString})
 	}
 }
 
