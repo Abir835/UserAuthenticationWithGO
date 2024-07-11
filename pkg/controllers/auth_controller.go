@@ -78,7 +78,7 @@ func Login(db *gorm.DB) http.HandlerFunc {
 
 		otp := utils.GenerateOTP()
 		user.OTP = otp
-		user.OTPExpiry = time.Now().Add(10 * time.Minute)
+		user.OTPExpiry = time.Now().Add(1 * time.Minute)
 		db.Save(&user)
 
 		utils.SendEmail(user.Email, "OTP for Login", "Your OTP is: "+otp)
@@ -110,6 +110,11 @@ func VerifyOTP(db *gorm.DB) http.HandlerFunc {
 			return
 		}
 
+		if user.OTPExpiry.Before(time.Now()) {
+			http.Error(w, "OTP has expired", http.StatusUnauthorized)
+			return
+		}
+
 		tokenString, err := utils.GenerateJWT(user.Email, user.Role)
 		if err != nil {
 			http.Error(w, "Error generating token", http.StatusInternalServerError)
@@ -124,5 +129,20 @@ func VerifyOTP(db *gorm.DB) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"message": "Login Successfully"})
+	}
+}
+
+func Logout() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "token",
+			Value:    "",
+			Expires:  time.Now().Add(-1 * time.Hour), // Immediate expiration
+			HttpOnly: true,
+			Path:     "/",
+		})
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Logout successful"})
 	}
 }
