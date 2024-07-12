@@ -115,7 +115,7 @@ func VerifyOTP(db *gorm.DB) http.HandlerFunc {
 			return
 		}
 
-		tokenString, err := utils.GenerateJWT(user.Email, user.Role)
+		tokenString, err := utils.GenerateJWT(user.Email, user.Role, int(user.ID))
 		if err != nil {
 			http.Error(w, "Error generating token", http.StatusInternalServerError)
 			return

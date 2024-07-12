@@ -8,13 +8,27 @@ import (
 	"user-authentication-with-go/pkg/models"
 )
 
+type BookResponse struct {
+	Name   string `json:"name"`
+	Author string `json:"author"`
+}
+
 func CreateBook(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var book models.Book
-		json.NewDecoder(r.Body).Decode(&book)
-		db.Create(&book)
+		var books []models.Book
+		if err := json.NewDecoder(r.Body).Decode(&books); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		var responses []BookResponse
+		for _, book := range books {
+			db.Create(&book)
+			responses = append(responses, BookResponse{Name: book.Name, Author: book.Author})
+		}
+
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(book)
+		json.NewEncoder(w).Encode(responses)
 	}
 }
 

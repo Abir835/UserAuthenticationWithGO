@@ -40,6 +40,7 @@ func SetupRoutes(db *gorm.DB) *mux.Router {
 	userRouter.HandleFunc("/profile", controllers.UserProfile())
 	userRouter.HandleFunc("/books", controllers.GetBooks(db)).Methods("GET")
 	userRouter.HandleFunc("/books/{id}", controllers.GetBook(db)).Methods("GET")
+	userRouter.HandleFunc("/purchase", controllers.PurchaseHandler(db)).Methods("POST")
 
 	return r
 }
