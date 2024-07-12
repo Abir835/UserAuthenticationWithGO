@@ -29,7 +29,13 @@ Books Viewing and Purchasing (Normal User)
 
     View Books: Normal users can view the list of available books.
     View Book Details: Normal users can see detailed information about a specific book.
-    (Optional) Purchase Books: Implement functionality for normal users to purchase books.
+    Purchase Books: Implement functionality for normal users to purchase books.
+    
+Books Purchasing (Normal User)
+
+    Purchase Books: Now i implement purchase book.
+    Price and Pcs and Toal Price we can validate.
+
 
 Database
 
@@ -86,3 +92,4 @@ User Operations
     GET /user/profile: View user profile.
     GET /user/books: Get list of available books for normal users.
     GET /user/books/{id}: Get details of a specific book for normal users
+    POST /user/purchase: Book Purchase
